@@ -1,0 +1,12 @@
+<header class="hero">
+  <div>
+    <p class="eyebrow">Cartera Sana</p>
+    <h1>Controla ingresos, gastos, deudas y ahorros con una vista más clara.</h1>
+    <p>Planifica lo que recibirás este mes, programa tus suscripciones y revisa el estado real de tus finanzas.</p>
+  </div>
+  <div class="hero-card">
+    <p>Bienvenida/o, <strong><%= dashboard.settings.ownerName %></strong></p>
+    <h2><%= formatCurrency(dashboard.balance, currency) %></h2>
+    <p class="muted">Saldo del mes de <%= dashboard.currentMonthLabel %></p>
+  </div>
+</header>

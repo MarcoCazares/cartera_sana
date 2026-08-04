@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cartera Sana</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell container py-4">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Cartera Sana</p>
+          <h1>Controla ingresos, gastos, deudas y ahorros con una vista más clara.</h1>
+          <p>Planifica lo que recibirás este mes, programa tus suscripciones y revisa el estado real de tus finanzas.</p>
+        </div>
+        <div class="hero-card">
+          <p>Bienvenida/o, <strong><%= dashboard.settings?.ownerName || 'Usuario' %></strong></p>
+          <h2><%= formatCurrency(dashboard.balance || 0, currency) %></h2>
+          <p class="muted">Saldo del mes de <%= dashboard.currentMonthLabel || '' %></p>
+        </div>
+      </header>
+
+      <nav class="tabs nav nav-pills flex-wrap gap-2 mb-4">
+        <a class="tab-link nav-link <%= activeView === 'overview' ? 'active' : '' %>" href="/?view=overview">Inicio</a>
+        <a class="tab-link nav-link <%= activeView === 'plan' ? 'active' : '' %>" href="/?view=plan">Planificación</a>
+        <a class="tab-link nav-link <%= activeView === 'movements' ? 'active' : '' %>" href="/?view=movements">Movimientos</a>
+        <a class="tab-link nav-link <%= activeView === 'debts' ? 'active' : '' %>" href="/?view=debts">Deudas</a>
+        <a class="tab-link nav-link <%= activeView === 'goals' ? 'active' : '' %>" href="/?view=goals">Metas</a>
+        <a class="tab-link nav-link <%= activeView === 'accounts' ? 'active' : '' %>" href="/?view=accounts">Cuentas</a>
+      </nav>
+
+      <section class="summary-grid row g-3">
+        <article class="card col-12 col-lg-3">
+          <p class="label">Ingresos reales</p>
+          <h3><%= formatCurrency(dashboard.incomeTotal || 0, currency) %></h3>
+        </article>
+        <article class="card col-12 col-lg-3">
+          <p class="label">Gastos reales</p>
+          <h3><%= formatCurrency(dashboard.expenseTotal || 0, currency) %></h3>
+        </article>
+        <article class="card col-12 col-lg-3">
+          <p class="label">Planeado mensual</p>
+          <h3><%= formatCurrency(dashboard.plannedBalance || 0, currency) %></h3>
+        </article>
+        <article class="card col-12 col-lg-3">
+          <p class="label">Meta de ahorro</p>
+          <h3><%= formatCurrency(dashboard.settings?.monthlySavingsGoal || 0, currency) %></h3>
+        </article>
+      </section>
+
+      <!-- ============================================ -->
+      <!-- VISTA: INICIO (OVERVIEW)                      -->
+      <!-- ============================================ -->
+      <% if (activeView === 'overview') { %>
+        <!-- Resumen del mes -->
+        <section class="section-grid">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>Resumen del mes</h2>
+              <span>Tu panorama general</span>
+            </div>
+            <div class="highlight-list">
+              <div class="highlight-item">
+                <span>Ingresos programados</span>
+                <strong><%= formatCurrency(dashboard.plannedIncomeTotal || 0, currency) %></strong>
+              </div>
+              <div class="highlight-item">
+                <span>Gastos fijos y suscripciones</span>
+                <strong><%= formatCurrency(dashboard.plannedExpenseTotal || 0, currency) %></strong>
+              </div>
+              <div class="highlight-item">
+                <span>Saldo disponible después de lo planeado</span>
+                <strong><%= formatCurrency(dashboard.projectedBalance || 0, currency) %></strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="section-header">
+              <h2>Próximos cargos</h2>
+              <span>Lo que tienes programado</span>
+            </div>
+            <% if (dashboard.upcomingPlanned && dashboard.upcomingPlanned.length > 0) { %>
+              <% dashboard.upcomingPlanned.forEach((item) => { %>
+                <div class="plan-item compact">
+                  <div>
+                    <strong><%= item.name %></strong>
+                    <p class="muted"><%= item.category %> · día <%= item.dueDay %></p>
+                  </div>
+                  <span class="tag <%= item.type === 'income' ? 'positive' : 'negative' %>"><%= formatCurrency(item.amount, currency) %></span>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="muted">Aún no programas ingresos o gastos fijos.</p>
+            <% } %>
+          </div>
+        </section>
+
+        <!-- Gastos por categoría y últimos movimientos -->
+        <section class="section-grid">
+          <div class="card">
+            <div class="section-header">
+              <h2>Gastos por categoría</h2>
+              <span>En dónde se va el dinero</span>
+            </div>
+            <% if (dashboard.categoryBreakdown && dashboard.categoryBreakdown.length > 0) { %>
+              <svg viewBox="0 0 320 140" class="chart-svg" role="img" aria-label="Gráfica de gastos por categoría">
+                <% dashboard.categoryBreakdown.forEach((item, index) => { const height = Math.max(18, (item.amount / dashboard.maxCategoryAmount) * 100); %>
+                  <rect x="<%= 20 + index * 58 %>" y="<%= 120 - height %>" width="36" height="<%= height %>" rx="8" fill="<%= ['#38bdf8', '#818cf8', '#f59e0b', '#fb7185', '#34d399'][index % 5] %>"></rect>
+                  <text x="<%= 20 + index * 58 + 18 %>" y="132" text-anchor="middle" font-size="10" fill="#e2e8f0"><%= item.category.substring(0, 8) %></text>
+                <% }) %>
+              </svg>
+              <% dashboard.categoryBreakdown.forEach((item) => { %>
+                <div class="breakdown-item">
+                  <div class="breakdown-meta">
+                    <strong><%= item.category %></strong>
+                    <span><%= formatCurrency(item.amount, currency) %></span>
+                  </div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="muted">Aún no registras gastos reales de este mes.</p>
+            <% } %>
+          </div>
+
+          <div class="card">
+            <div class="section-header">
+              <h2>Últimos movimientos</h2>
+              <span>Lo más reciente primero</span>
+            </div>
+            <% if (dashboard.transactions && dashboard.transactions.length > 0) { %>
+              <% dashboard.transactions.forEach((transaction) => { %>
+                <div class="transaction-item" data-id="<%= transaction.id %>">
+                  <div>
+                    <strong><%= transaction.description %></strong>
+                    <p class="muted"><%= transaction.category %> · <%= transaction.date %></p>
+                  </div>
+                  <div class="transaction-actions">
+                    <span class="amount <%= transaction.type === 'income' ? 'positive' : 'negative' %>">
+                      <%= transaction.type === 'income' ? '+' : '-' %><%= formatCurrency(transaction.amount, currency) %>
+                    </span>
+                    <button class="btn-edit" data-id="<%= transaction.id %>" data-type="transaction" title="Editar">✏️</button>
+                    <button class="btn-delete" data-id="<%= transaction.id %>" data-type="transaction" title="Eliminar">🗑️</button>
+                  </div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="muted">Todavía no has registrado movimientos.</p>
+            <% } %>
+          </div>
+        </section>
+
+        <!-- Métricas Financieras -->
+        <section class="section-grid compact-bottom">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>Métricas Financieras</h2>
+              <span>Tu salud financiera en números</span>
+            </div>
+            <div class="metrics-grid">
+              <div class="metric-item">
+                <p class="label">Tasa de Ahorro</p>
+                <h3><%= (dashboard.metrics?.savingsRate || 0).toFixed(1) %>%</h3>
+                <p class="muted"><%= (dashboard.metrics?.savingsRate || 0) > 20 ? '👍 Excelente' : (dashboard.metrics?.savingsRate || 0) > 10 ? '👌 Bien' : '⚠️ Mejorable' %></p>
+              </div>
+              <div class="metric-item">
+                <p class="label">Deuda vs Ingresos</p>
+                <h3><%= (dashboard.metrics?.debtToIncome || 0).toFixed(1) %>%</h3>
+                <p class="muted"><%= (dashboard.metrics?.debtToIncome || 0) < 30 ? '✅ Saludable' : '⚠️ Alto' %></p>
+              </div>
+              <div class="metric-item">
+                <p class="label">Fondo de Emergencia</p>
+                <h3><%= (dashboard.metrics?.emergencyFundMonths || 0).toFixed(1) %> meses</h3>
+                <p class="muted"><%= (dashboard.metrics?.emergencyFundMonths || 0) >= 3 ? '✅ Adecuado' : '⚠️ Requiere atención' %></p>
+              </div>
+              <div class="metric-item">
+                <p class="label">Ahorro Mensual</p>
+                <h3><%= formatCurrency(dashboard.metrics?.monthlySavings || 0, currency) %></h3>
+                <p class="muted"><%= (dashboard.metrics?.monthlySavings || 0) > 0 ? '👍 Positivo' : '⚠️ Gasto > Ingreso' %></p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Presupuestos -->
+        <section class="section-grid compact-bottom">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>Presupuestos por Categoría</h2>
+              <span>Límites vs. gasto real</span>
+            </div>
+            
+            <form action="/budgets" method="POST" class="inline-form">
+              <input type="text" name="category" placeholder="Categoría" required />
+              <input type="number" step="0.01" name="amount" placeholder="Presupuesto" required />
+              <button type="submit">Agregar</button>
+            </form>
+            
+            <% if (dashboard.budgets && Object.keys(dashboard.budgets).length > 0) { %>
+              <% Object.entries(dashboard.budgets).forEach(([category, budget]) => { %>
+                <% const spent = (dashboard.categoryBreakdown || []).find(c => c.category === category)?.amount || 0; %>
+                <% const percent = budget > 0 ? (spent / budget) * 100 : 0; %>
+                <% const budgetWidth = Math.min(100, percent); %>
+                <% const budgetColor = percent > 90 ? '#f87171' : percent > 70 ? '#fbbf24' : '#34d399'; %>
+                <div class="budget-item">
+                  <div class="budget-head">
+                    <strong><%= category %></strong>
+                    <span><%= formatCurrency(spent, currency) %> / <%= formatCurrency(budget, currency) %></span>
+                    <button class="btn-delete-budget" data-category="<%= category %>" title="Eliminar presupuesto">🗑️</button>
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-fill" data-progress="<%= budgetWidth %>" data-color="<%= budgetColor %>"></div>
+                  </div>
+                  <span class="budget-status <%= percent > 90 ? 'danger' : percent > 70 ? 'warning' : 'success' %>">
+                    <%= percent > 90 ? '⚠️ Excedido' : percent > 70 ? '⚡ Cerca' : '✅ En línea' %>
+                  </span>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="muted">No tienes presupuestos definidos.</p>
+            <% } %>
+          </div>
+        </section>
+
+        <!-- Configuración -->
+        <section class="section-grid compact-bottom">
+          <div class="card">
+            <div class="section-header">
+              <h2>Meta de ahorro</h2>
+              <span>Ajusta tu objetivo</span>
+            </div>
+            <form action="/settings" method="POST" class="stacked-form compact">
+              <label>
+                Tu nombre
+                <input type="text" name="ownerName" value="<%= dashboard.settings?.ownerName || '' %>" />
+              </label>
+              <label>
+                Meta mensual
+                <input type="number" step="0.01" name="monthlySavingsGoal" value="<%= dashboard.settings?.monthlySavingsGoal || 0 %>" />
+              </label>
+              <label>
+                Moneda
+                <select name="currency">
+                  <option value="MXN" <%= currency === 'MXN' ? 'selected' : '' %>>MXN</option>
+                  <option value="USD" <%= currency === 'USD' ? 'selected' : '' %>>USD</option>
+                </select>
+              </label>
+              <button type="submit">Actualizar</button>
+            </form>
+            <p class="hint">
+              <% if ((dashboard.savingsGap || 0) >= 0) { %>
+                Te faltan <strong><%= formatCurrency(dashboard.savingsGap || 0, currency) %></strong> para alcanzar tu meta.
+              <% } else { %>
+                Estás <strong><%= formatCurrency(Math.abs(dashboard.savingsGap || 0), currency) %></strong> por encima de tu meta mensual.
+              <% } %>
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="section-header">
+              <h2>Exportar Reportes</h2>
+              <span>Descarga tus datos</span>
+            </div>
+            <div class="export-buttons">
+              <a href="/api/export/excel" class="export-btn excel">📊 Excel</a>
+              <a href="/api/export/pdf" class="export-btn pdf">📄 PDF</a>
+            </div>
+          </div>
+        </section>
+      <% } %>
+
+      <!-- ============================================ -->
+      <!-- VISTA: PLANIFICACIÓN                        -->
+      <!-- ============================================ -->
+      <% if (activeView === 'plan') { %>
+        <section class="section-grid">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>Programar ingreso o gasto</h2>
+              <span>Define tus ingresos mensuales y cargos fijos</span>
+            </div>
+            <form action="/planned" method="POST" class="stacked-form">
+              <div class="form-row">
+                <label>
+                  Tipo
+                  <select name="type">
+                    <option value="income">Ingreso mensual</option>
+                    <option value="expense">Gasto fijo / suscripción</option>
+                  </select>
+                </label>
+                <label>
+                  Nombre
+                  <input type="text" name="name" placeholder="Ej. Sueldo, Netflix, renta" required />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Monto
+                  <input type="number" step="0.01" name="amount" required />
+                </label>
+                <label>
+                  Categoría
+                  <input type="text" name="category" placeholder="Ej. Trabajo, Suscripción" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Frecuencia
+                  <select name="frequency">
+                    <option value="monthly">Mensual</option>
+                    <option value="biweekly">Quincenal</option>
+                    <option value="once">Una sola vez</option>
+                  </select>
+                </label>
+                <label>
+                  Día de cobro/pago
+                  <input type="number" min="1" max="31" name="dueDay" value="1" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Método de Pago
+                  <select name="paymentMethod">
+                    <option value="Automático">🔄 Automático</option>
+                    <option value="Manual">✋ Manual</option>
+                    <option value="Transferencia">🏦 Transferencia</option>
+                    <option value="Efectivo">💵 Efectivo</option>
+                    <option value="Tarjeta Débito">💳 Tarjeta Débito</option>
+                  </select>
+                </label>
+                <label>
+                  Nota
+                  <input type="text" name="notes" placeholder="Ej. Pago domiciliado en TDC" />
+                </label>
+              </div>
+              <button type="submit">Guardar programación</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="section-header">
+              <h2>Tu plan mensual</h2>
+              <span>Ingresos y gastos programados</span>
+            </div>
+            <% if (dashboard.plannedItems && dashboard.plannedItems.length > 0) { %>
+              <% dashboard.plannedItems.forEach((item) => { %>
+                <div class="plan-item" data-id="<%= item.id %>">
+                  <div>
+                    <strong><%= item.name %></strong>
+                    <p class="muted"><%= item.category %> · <%= item.frequency === 'biweekly' ? 'Quincenal' : item.frequency === 'monthly' ? 'Mensual' : 'Una vez' %> · día <%= item.dueDay %></p>
+                  </div>
+                  <div class="transaction-actions">
+                    <span class="tag <%= item.type === 'income' ? 'positive' : 'negative' %>"><%= formatCurrency(item.amount, currency) %></span>
+                    <button class="btn-edit-plan" data-id="<%= item.id %>" title="Editar">✏️</button>
+                    <button class="btn-delete-plan" data-id="<%= item.id %>" title="Eliminar">🗑️</button>
+                  </div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="muted">No hay ingresos o gastos programados aún.</p>
+            <% } %>
+          </div>
+        </section>
+      <% } %>
+
+      <!-- ============================================ -->
+      <!-- VISTA: MOVIMIENTOS                          -->
+      <!-- ============================================ -->
+      <% if (activeView === 'movements') { %>
+        <section class="section-grid">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>Registrar movimiento real</h2>
+              <span>Todo lo que entra, sale o paga una deuda</span>
+            </div>
+            <form action="/transactions" method="POST" class="stacked-form">
+              <div class="form-row">
+                <label>
+                  Tipo
+                  <select name="type">
+                    <option value="income">Ingreso</option>
+                    <option value="expense">Gasto</option>
+                    <option value="debt_payment">Pago de deuda</option>
+                  </select>
+                </label>
+                <label>
+                  Monto
+                  <input type="number" step="0.01" name="amount" required />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Descripción
+                  <input type="text" name="description" placeholder="Ej. Pago de sueldo" required />
+                </label>
+                <label>
+                  Categoría
+                  <input type="text" name="category" placeholder="Ej. Trabajo" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Fecha
+                  <input type="date" name="date" />
+                </label>
+                <label>
+                  Cuenta
+                  <select name="accountId">
+                    <% (dashboard.accounts || []).forEach((account) => { %>
+                      <option value="<%= account.id %>"><%= account.name %> (Balance: <%= formatCurrency(account.balance, currency) %>)</option>
+                    <% }) %>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Método de Pago
+                  <select name="paymentMethod">
+                    <option value="Efectivo">💵 Efectivo</option>
+                    <option value="Transferencia">🏦 Transferencia</option>
+                    <option value="Tarjeta Débito">💳 Tarjeta Débito</option>
+                    <option value="Tarjeta Crédito">💳 Tarjeta Crédito</option>
+                    <option value="Cheque">📝 Cheque</option>
+                    <option value="Otro">🔄 Otro</option>
+                  </select>
+                </label>
+                <label>
+                  Deuda asociada
+                  <select name="linkedDebtId">
+                    <option value="">Ninguna</option>
+                    <% (dashboard.debts || []).forEach((debt) => { %>
+                      <option value="<%= debt.id %>"><%= debt.name %></option>
+                    <% }) %>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Nota
+                <input type="text" name="notes" placeholder="Opcional" />
+              </label>
+              <button type="submit">Guardar movimiento</button>
+            </form>
+
+            <!-- Transferencias -->
+            <div class="section-header" style="margin-top: 24px;">
+              <h2>Transferir entre cuentas</h2>
+              <span>Mueve dinero entre tus cuentas</span>
+            </div>
+            <form action="/transfers" method="POST" class="stacked-form">
+              <div class="form-row">
+                <label>
+                  De
+                  <select name="fromAccount" required>
+                    <% (dashboard.accounts || []).forEach((account) => { %>
+                      <option value="<%= account.id %>"><%= account.name %> (<%= formatCurrency(account.balance, currency) %>)</option>
+                    <% }) %>
+                  </select>
+                </label>
+                <label>
+                  A
+                  <select name="toAccount" required>
+                    <% (dashboard.accounts || []).forEach((account) => { %>
+                      <option value="<%= account.id %>"><%= account.name %> (<%= formatCurrency(account.balance, currency) %>)</option>
+                    <% }) %>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Monto
+                  <input type="number" step="0.01" name="amount" required />
+                </label>
+                <label>
+                  Descripción
+                  <input type="text" name="description" placeholder="Motivo de la transferencia" />
+                </label>
+              </div>
+              <button type="submit">Realizar Transferencia</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="section-header">
+              <h2>Historial</h2>
+              <span>Todos los movimientos registrados</span>
+            </div>
+            <% if (dashboard.transactions && dashboard.transactions.length > 0) { %>
+              <% dashboard.transactions.forEach((transaction) => { %>
+                <div class="transaction-item" data-id="<%= transaction.id %>">
+                  <div>
+                    <strong><%= transaction.description %></strong>
+                    <p class="muted"><%= transaction.category %> · <%= transaction.date %></p>
+                  </div>
+                  <div class="transaction-actions">
+                    <span class="amount <%= transaction.type === 'income' ? 'positive' : 'negative' %>">
+                      <%= transaction.type === 'income' ? '+' : '-' %><%= formatCurrency(transaction.amount, currency) %>
+                    </span>
+                    <button class="btn-edit" data-id="<%= transaction.id %>" data-type="transaction" title="Editar">✏️</button>
+                    <button class="btn-delete" data-id="<%= transaction.id %>" data-type="transaction" title="Eliminar">🗑️</button>
+                  </div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="muted">Aún no registras movimientos.</p>
+            <% } %>
+          </div>
+        </section>
+      <% } %>
+
+      <!-- ============================================ -->
+      <!-- VISTA: DEUDAS                               -->
+      <!-- ============================================ -->
+      <% if (activeView === 'debts') { %>
+        <section class="section-grid">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>Agregar deuda</h2>
+              <span>Seguimiento de tarjetas, préstamos y pagos mínimos</span>
+            </div>
+            <form action="/debts" method="POST" class="stacked-form">
+              <div class="form-row">
+                <label>
+                  Nombre
+                  <input type="text" name="name" required />
+                </label>
+                <label>
+                  Saldo actual
+                  <input type="number" step="0.01" name="balance" required />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Límite
+                  <input type="number" step="0.01" name="limit" />
+                </label>
+                <label>
+                  Pago mínimo
+                  <input type="number" step="0.01" name="minPayment" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Fecha de vencimiento
+                  <input type="date" name="dueDate" />
+                </label>
+                <label>
+                  Interés anual (%)
+                  <input type="number" step="0.01" name="interestRate" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Método de Pago Preferido
+                  <select name="paymentMethod">
+                    <option value="Transferencia">🏦 Transferencia</option>
+                    <option value="Efectivo">💵 Efectivo</option>
+                    <option value="Tarjeta Débito">💳 Tarjeta Débito</option>
+                    <option value="Automático">🔄 Automático</option>
+                  </select>
+                </label>
+                <label>
+                  Color de Seguimiento
+                  <input type="color" name="color" value="#7c3aed" />
+                </label>
+              </div>
+              <button type="submit">Guardar deuda</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="section-header">
+              <h2>Deudas activas</h2>
+              <span>Uso de crédito y pagos mínimos</span>
+            </div>
+            <% if (dashboard.debts && dashboard.debts.length > 0) { %>
+              <% dashboard.debts.forEach((debt) => { %>
+                <% const width = debt.limit ? Math.min(100, Math.round((Number(debt.balance || 0) / Number(debt.limit || 1)) * 100)) : 0; %>
+                <% const debtColor = debt.color || '#7c3aed'; %>
+                <div class="debt-item" data-id="<%= debt.id %>">
+                  <div class="debt-head">
+                    <strong><%= debt.name %></strong>
+                    <span><%= formatCurrency(debt.balance, currency) %></span>
+                    <div class="transaction-actions">
+                      <button class="btn-edit-debt" data-id="<%= debt.id %>" title="Editar">✏️</button>
+                      <button class="btn-delete-debt" data-id="<%= debt.id %>" title="Eliminar">🗑️</button>
+                    </div>
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-fill" data-progress="<%= width %>" data-color="<%= debtColor %>"></div>
+                  </div>
+                  <p class="muted">Límite <%= formatCurrency(debt.limit, currency) %> · Pago mínimo <%= formatCurrency(debt.minPayment, currency) %></p>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="muted">Aún no agregas deudas.</p>
+            <% } %>
+          </div>
+        </section>
+
+        <!-- Simulador de Amortización -->
+        <section class="section-grid compact-bottom">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>📊 Simulador de Amortización</h2>
+              <span>Compara estrategias de pago</span>
+            </div>
+            
+            <div class="calculator-grid">
+              <div class="calculator-inputs">
+                <h3>Datos de la Deuda</h3>
+                <div class="form-row">
+                  <label>
+                    Saldo
+                    <input type="number" id="amortBalance" placeholder="Ej. 3500" />
+                  </label>
+                  <label>
+                    Tasa Interés Anual (%)
+                    <input type="number" id="amortRate" placeholder="Ej. 35" />
+                  </label>
+                </div>
+                <div class="form-row">
+                  <label>
+                    Pago Mínimo
+                    <input type="number" id="amortMinPayment" placeholder="Ej. 175" />
+                  </label>
+                  <label>
+                    Pago Extra
+                    <input type="number" id="amortExtraPayment" value="0" placeholder="Ej. 500" />
+                  </label>
+                </div>
+                <button onclick="calculateAmortization()" style="width: 100%;">Calcular Amortización</button>
+              </div>
+              
+              <div class="calculator-results" id="amortResults" style="display: none;">
+                <h3>Comparación de Estrategias</h3>
+                <div class="amortization-summary">
+                  <div class="summary-item">
+                    <span>Meses Ahorrados</span>
+                    <strong id="amortMonthsSaved">0</strong>
+                  </div>
+                  <div class="summary-item">
+                    <span>Interés Ahorrado</span>
+                    <strong id="amortInterestSaved">$0</strong>
+                  </div>
+                  <div class="summary-item">
+                    <span>Total Pagado en Intereses</span>
+                    <strong id="amortTotalInterest">$0</strong>
+                  </div>
+                </div>
+                
+                <div class="comparison-highlight" id="amortComparison">
+                  <!-- Se llena dinámicamente -->
+                </div>
+                
+                <div style="margin-top: 16px;">
+                  <h4>📋 Tabla de Amortización (Primeros 12 meses)</h4>
+                  <div id="amortScheduleContainer" style="overflow-x: auto;">
+                    <!-- Se llena dinámicamente -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      <% } %>
+
+      <!-- ============================================ -->
+      <!-- VISTA: METAS                                -->
+      <!-- ============================================ -->
+      <% if (activeView === 'goals') { %>
+        <section class="section-grid">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>Mis Metas de Ahorro</h2>
+              <span>Visualiza tu progreso</span>
+            </div>
+            
+            <form action="/savings-goals" method="POST" class="stacked-form">
+              <div class="form-row">
+                <label>
+                  Nombre
+                  <input type="text" name="name" placeholder="Ej. Viaje a Cancún" required />
+                </label>
+                <label>
+                  Meta
+                  <input type="number" step="0.01" name="targetAmount" required />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Monto inicial
+                  <input type="number" step="0.01" name="currentAmount" value="0" />
+                </label>
+                <label>
+                  Fecha límite
+                  <input type="date" name="deadline" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Aportación mensual
+                  <input type="number" step="0.01" name="monthlyContribution" placeholder="0" />
+                </label>
+                <label>
+                  Método de Ahorro
+                  <select name="savingMethod">
+                    <option value="monthly">📅 Mensual</option>
+                    <option value="biweekly">📅 Quincenal</option>
+                    <option value="weekly">📅 Semanal</option>
+                    <option value="daily">📅 Diaria</option>
+                  </select>
+                </label>
+              </div>
+              <button type="submit">Crear Meta</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="section-header">
+              <h2>Progreso</h2>
+              <span>Metas activas</span>
+            </div>
+            <% if (dashboard.savingsGoals && dashboard.savingsGoals.length > 0) { %>
+              <% dashboard.savingsGoals.forEach(goal => { %>
+                <% const percent = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0; %>
+                <% const goalWidth = Math.min(100, percent); %>
+                <div class="goal-item" data-id="<%= goal.id %>">
+                  <div class="goal-head">
+                    <strong><%= goal.name %></strong>
+                    <span><%= formatCurrency(goal.currentAmount, currency) %> / <%= formatCurrency(goal.targetAmount, currency) %></span>
+                    <div class="transaction-actions">
+                      <button class="btn-delete-goal" data-id="<%= goal.id %>" title="Eliminar">🗑️</button>
+                    </div>
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-fill" data-progress="<%= goalWidth %>" data-color="#7c3aed"></div>
+                  </div>
+                  <p class="muted">
+                    <%= percent.toFixed(0) %>% completado
+                    <% if (goal.deadline) { %>
+                      · <%= new Date(goal.deadline).toLocaleDateString() %>
+                    <% } %>
+                    <% if (goal.monthlyContribution && goal.monthlyContribution > 0) { %>
+                      · Meta mensual: <%= formatCurrency(goal.monthlyContribution, currency) %>
+                    <% } %>
+                  </p>
+                  <form action="/savings-goals/<%= goal.id %>" method="PUT" class="inline-form" onsubmit="return false;">
+                    <input type="number" step="0.01" name="addAmount" placeholder="Aportar" class="goal-contribution" />
+                    <button type="submit" class="btn-add-goal" data-id="<%= goal.id %>">+</button>
+                  </form>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="muted">Aún no tienes metas de ahorro.</p>
+            <% } %>
+          </div>
+        </section>
+
+        <!-- Calculadora de Aportaciones -->
+        <section class="section-grid compact-bottom">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>📊 Calculadora de Aportaciones</h2>
+              <span>¿Cuánto necesitas ahorrar?</span>
+            </div>
+            
+            <div class="calculator-grid">
+              <div class="calculator-inputs">
+                <h3>Datos de tu Meta</h3>
+                <div class="form-row">
+                  <label>
+                    Meta Total
+                    <input type="number" id="calcTarget" placeholder="Ej. 15000" />
+                  </label>
+                  <label>
+                    Monto Actual
+                    <input type="number" id="calcCurrent" placeholder="Ej. 2500" value="0" />
+                  </label>
+                </div>
+                <div class="form-row">
+                  <label>
+                    Fecha Límite
+                    <input type="date" id="calcDeadline" />
+                  </label>
+                  <label>
+                    Frecuencia de Aportación
+                    <select id="calcFrequency">
+                      <option value="monthly">📅 Mensual</option>
+                      <option value="biweekly">📅 Quincenal</option>
+                      <option value="weekly">📅 Semanal</option>
+                      <option value="daily">📅 Diaria</option>
+                    </select>
+                  </label>
+                </div>
+                <button onclick="calculateGoal()" style="width: 100%;">Calcular Aportación</button>
+              </div>
+              
+              <div class="calculator-results" id="calcResults" style="display: none;">
+                <h3>Resultados</h3>
+                <div class="result-item">
+                  <span>💰 Total necesario:</span>
+                  <strong id="resultRemaining">$0</strong>
+                </div>
+                <div class="result-item">
+                  <span>⏰ Tiempo disponible:</span>
+                  <strong id="resultTime">0 meses</strong>
+                </div>
+                <div class="result-item">
+                  <span>📊 Progreso actual:</span>
+                  <strong id="resultProgress">0%</strong>
+                </div>
+                <div class="result-options">
+                  <div class="result-option monthly">
+                    <span>📅 Mensual</span>
+                    <strong id="resultMonthly">$0</strong>
+                  </div>
+                  <div class="result-option biweekly">
+                    <span>📅 Quincenal</span>
+                    <strong id="resultBiweekly">$0</strong>
+                  </div>
+                  <div class="result-option weekly">
+                    <span>📅 Semanal</span>
+                    <strong id="resultWeekly">$0</strong>
+                  </div>
+                  <div class="result-option daily">
+                    <span>📅 Diaria</span>
+                    <strong id="resultDaily">$0</strong>
+                  </div>
+                </div>
+                <div style="margin-top: 12px; padding: 10px; background: rgba(52, 211, 153, 0.1); border-radius: 8px;">
+                  <p style="margin: 0; font-size: 0.9rem; color: #94a3b8;">
+                    💡 Los resultados se auto-completan en el formulario de metas
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      <% } %>
+
+      <!-- ============================================ -->
+      <!-- VISTA: CUENTAS                              -->
+      <!-- ============================================ -->
+      <% if (activeView === 'accounts') { %>
+        <section class="section-grid">
+          <div class="card wide">
+            <div class="section-header">
+              <h2>Agregar Cuenta</h2>
+              <span>Administra tus diferentes cuentas</span>
+            </div>
+            <form action="/accounts" method="POST" class="stacked-form">
+              <div class="form-row">
+                <label>
+                  Nombre
+                  <input type="text" name="name" placeholder="Ej. Cuenta de Ahorro" required />
+                </label>
+                <label>
+                  Saldo inicial
+                  <input type="number" step="0.01" name="balance" value="0" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Tipo
+                  <select name="type">
+                    <option value="cash">💵 Efectivo</option>
+                    <option value="debit">💳 Tarjeta Débito</option>
+                    <option value="savings">🏦 Ahorro</option>
+                    <option value="credit">💳 Tarjeta Crédito</option>
+                  </select>
+                </label>
+                <label>
+                  Método de Pago Predeterminado
+                  <select name="defaultPaymentMethod">
+                    <option value="Efectivo">💵 Efectivo</option>
+                    <option value="Transferencia">🏦 Transferencia</option>
+                    <option value="Tarjeta Débito">💳 Tarjeta Débito</option>
+                    <option value="Tarjeta Crédito">💳 Tarjeta Crédito</option>
+                  </select>
+                </label>
+              </div>
+              <button type="submit">Crear Cuenta</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="section-header">
+              <h2>Mis Cuentas</h2>
+              <span>Resumen de saldos</span>
+            </div>
+            <% if (dashboard.accounts && dashboard.accounts.length > 0) { %>
+              <% dashboard.accounts.forEach((account) => { %>
+                <div class="account-item" data-id="<%= account.id %>">
+                  <div class="account-head">
+                    <div>
+                      <strong><%= account.name %></strong>
+                      <p class="muted"><%= account.type %></p>
+                    </div>
+                    <span class="amount positive"><%= formatCurrency(account.balance, currency) %></span>
+                    <div class="transaction-actions">
+                      <button class="btn-delete-account" data-id="<%= account.id %>" title="Eliminar">🗑️</button>
+                    </div>
+                  </div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="muted">Aún no tienes cuentas.</p>
+            <% } %>
+          </div>
+        </section>
+      <% } %>
+
+    </div>
+
+    <!-- Modal para editar -->
+    <div id="editModal" class="modal hidden" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title fs-5" id="modalTitle">Editar</h2>
+            <button type="button" class="btn-close btn-close-white" onclick="closeModal()" aria-label="Cerrar"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editForm" onsubmit="return false;">
+              <input type="hidden" id="editId" />
+              <input type="hidden" id="editType" />
+              
+              <div id="editFields">
+                <!-- Los campos se llenarán dinámicamente con JavaScript -->
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" onclick="submitEdit()">Actualizar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts.js"></script>
+  </body>
+</html>
