@@ -11,6 +11,7 @@ const DATA_FILE = path.join(__dirname, 'data', 'app-data.json');
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/vendor', express.static(path.join(__dirname, 'node_modules')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -27,7 +28,7 @@ function ensureDataFile() {
       settings: {
         monthlySavingsGoal: 5000,
         currency: 'MXN',
-        ownerName: 'Tu nombre'
+        ownerName: 'Marco'
       },
       accounts: [
         { id: '1', name: 'Efectivo', balance: 0, type: 'cash' },
@@ -137,7 +138,7 @@ function calculateFinancialMetrics(data) {
 function buildDashboardData(data) {
   // Asegurar que data existe y tiene todas las propiedades necesarias
   const safeData = {
-    settings: data?.settings || { monthlySavingsGoal: 5000, currency: 'MXN', ownerName: 'Tu nombre' },
+    settings: data?.settings || { monthlySavingsGoal: 5000, currency: 'MXN', ownerName: 'Marco' },
     transactions: data?.transactions || [],
     debts: data?.debts || [],
     plannedItems: data?.plannedItems || [],
@@ -727,7 +728,7 @@ app.post('/settings', (req, res) => {
       ...data.settings,
       monthlySavingsGoal: Number(req.body.monthlySavingsGoal || 0),
       currency: req.body.currency || data.settings?.currency || 'MXN',
-      ownerName: req.body.ownerName || data.settings?.ownerName || 'Tu nombre'
+      ownerName: req.body.ownerName || data.settings?.ownerName || 'Marco'
     };
     saveData(data);
     res.redirect('/?view=overview');

@@ -1,3 +1,15 @@
+// ============ ICONOS LUCIDE ============
+// Lucide ya se carga globalmente desde /vendor/lucide/dist/umd/lucide.js
+// (agregado en el <head> del HTML)
+function refreshIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+  }
+}
+
+// Ejecutar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', refreshIcons);
+
 // ============ TOASTS Y SWEETALERT2 ============
 
 function showToast(message, type = 'info') {
@@ -349,6 +361,8 @@ function openEditModal(type, data) {
   modal.classList.remove('hidden');
   modal.classList.add('show');
   modal.style.display = 'block';
+
+   refreshIcons();  
 }
 
 function closeModal() {

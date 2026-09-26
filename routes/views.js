@@ -17,7 +17,7 @@ function ensureDataFile() {
       settings: {
         monthlySavingsGoal: 5000,
         currency: 'MXN',
-        ownerName: 'Tu nombre'
+        ownerName: 'Marco'
       },
       transactions: [],
       debts: [],
